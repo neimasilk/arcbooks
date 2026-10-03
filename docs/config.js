@@ -1,6 +1,6 @@
 // Deployed StatementRegistry on Arc mainnet (filled in after deployment).
-export const REGISTRY_ADDRESS = '0x0000000000000000000000000000000000000000';
-export const REGISTRY_DEPLOY_BLOCK = 0;
+export const REGISTRY_ADDRESS = '0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C';
+export const REGISTRY_DEPLOY_BLOCK = 24009177;
 
 export const REGISTRY_ABI = [
   {

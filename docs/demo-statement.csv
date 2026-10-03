@@ -1,0 +1,15 @@
+# arcbooks-statement-v1
+# chain_id,5042
+# account,0xe1ac95a9d735e6e8e01ebf76915981d2a53f9288
+# from_block,24009177
+# to_block,24009255
+# opening_balance_usdc,0
+# closing_balance_usdc,0.095
+# total_in_usdc,0.095
+# total_out_usdc,0
+# fees_and_unlogged_usdc,0
+# transfers,3
+block,tx_hash,log_index,direction,counterparty,amount_usdc,memo_id,memo
+24009229,0xa52897e1d78abd3ec711ec76d96b77863d0bf3311df691b8b01ea38cd4292615,46,in,0xa41ee7de65ebf09aecc1e89270e7e626a8f64ebb,0.05,0x7f706b91a738d0ef3666a5d3a5d196e8e3a25d456cc55ee6f418b5e657ef882e,INV-2026-0001 Batik tulis Malang x2
+24009234,0x5e65184953bc3db93dc1ee34a42991a26e7b2a0574ea3cf89694f84dd5ca3459,17,in,0xa41ee7de65ebf09aecc1e89270e7e626a8f64ebb,0.03,0x8c11373591c8a2d0ad9cf5021847cac41247f3431d6e958b6c20bdde66e9d0a4,INV-2026-0002 Kopi Dampit 1kg
+24009237,0x6da4d5a899662aca767e90b2e6ffa014c55febba91925ef75faa32cdc4142910,12,in,0xa41ee7de65ebf09aecc1e89270e7e626a8f64ebb,0.015,,

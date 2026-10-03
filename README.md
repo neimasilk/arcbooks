@@ -2,7 +2,7 @@
 
 **Exact, reconciled, verifiable USDC account statements for Arc.**
 
-Live app: https://neimasilk.github.io/arcbooks/ · Contract: see [Deployment](#deployment)
+**Live app:** https://neimasilk.github.io/arcbooks/ · **Contract (Arc mainnet):** [`0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C`](https://explorer.arc.io/address/0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C)
 
 ArcBooks turns any Arc address into a bookkeeping-grade USDC statement in seconds, with no backend, indexer, or API key. Each statement:
 
@@ -66,7 +66,22 @@ cd contracts && forge install foundry-rs/forge-std && forge test
 | Item | Value |
 |---|---|
 | Network | Arc mainnet (chain id 5042) |
-| StatementRegistry | _pending_ |
+| StatementRegistry | [`0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C`](https://explorer.arc.io/address/0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C) |
+| Deploy tx | [`0xd154b94d…6d8eda`](https://explorer.arc.io/tx/0xd154b94d168ccf1ef4847f54d7897c028dc158525e6cdc38241962d66f6d8eda) (block 24,009,177, 681,243 gas ≈ 0.0136 USDC) |
+
+## Live demo (all onchain, Arc mainnet)
+
+A demo merchant `0xE1ac95a9D735E6e8E01EBF76915981d2A53F9288` received three payments:
+
+| Tx | What | Amount |
+|---|---|---|
+| [`0xa52897e1…`](https://explorer.arc.io/tx/0xa52897e1d78abd3ec711ec76d96b77863d0bf3311df691b8b01ea38cd4292615) | ERC-20 transfer via `Memo`, ref **INV-2026-0001 Batik tulis Malang x2** | 0.05 USDC |
+| [`0x5e651849…`](https://explorer.arc.io/tx/0x5e65184953bc3db93dc1ee34a42991a26e7b2a0574ea3cf89694f84dd5ca3459) | ERC-20 transfer via `Memo`, ref **INV-2026-0002 Kopi Dampit 1kg** | 0.03 USDC |
+| [`0x6da4d5a8…`](https://explorer.arc.io/tx/0x6da4d5a899662aca767e90b2e6ffa014c55febba91925ef75faa32cdc4142910) | Plain native USDC send (no memo) | 0.015 USDC |
+
+- **Statement:** [open in ArcBooks](https://neimasilk.github.io/arcbooks/?account=0xE1ac95a9D735E6e8E01EBF76915981d2A53F9288&from=24009177&to=24009255). It shows 3 transfers, both invoice references, and is fully reconciled (0 + 0.095 = 0.095). The two ERC-20 payments each emitted two `Transfer` logs and are counted once.
+- **Anchored:** hash `0xaa31e5f4dae54e04bb8416caa7d36acdbe7a6ec6eb5b3696a60f17b7298710b6` in tx [`0x1998f9e0…`](https://explorer.arc.io/tx/0x1998f9e0128d546b85c37000420204665bf55e8992a123c87875d39f5effd360).
+- **Verify it yourself:** download [`docs/demo-statement.csv`](docs/demo-statement.csv), drop it into the **Verify** tab, then click **Re-derive from chain**.
 
 ## Disclosure
 

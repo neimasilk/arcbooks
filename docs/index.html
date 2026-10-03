@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ArcBooks: verifiable USDC statements on Arc</title>
+  <meta name="description" content="Exact, reconciled USDC account statements for any Arc address, with transaction memos, CSV export, and onchain-anchored proof for auditors." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232563eb'/><path d='M9 22V10h9a4 4 0 0 1 0 8h-9m7 0 5 4' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+  <style>
+    :root {
+      --bg: #f6f7fb; --card: #ffffff; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+      --accent: #2563eb; --accent-ink: #ffffff; --ok: #047857; --ok-bg: #ecfdf5; --warn: #b45309; --warn-bg: #fffbeb;
+      --bad: #b91c1c; --bad-bg: #fef2f2; --code: #f3f4f6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0b1020; --card: #121a2e; --ink: #e5e7eb; --muted: #9ca3af; --line: #24304d;
+        --accent: #60a5fa; --accent-ink: #0b1020; --ok: #34d399; --ok-bg: #062a20; --warn: #fbbf24; --warn-bg: #2a1f05;
+        --bad: #f87171; --bad-bg: #2a0b0b; --code: #1a2440;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    header { padding: 20px 16px 8px; max-width: 1100px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    header h1 { font-size: 22px; margin: 0; }
+    header .tag { color: var(--muted); font-size: 14px; }
+    header .spacer { flex: 1; }
+    main { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+    nav { display: flex; gap: 6px; margin: 8px 0 16px; flex-wrap: wrap; }
+    nav button { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 14px; }
+    nav button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+    .card h2 { font-size: 17px; margin: 0 0 12px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; }
+    .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-bottom: 12px; }
+    .btn { border: 0; background: var(--accent); color: var(--accent-ink); padding: 10px 16px; border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
+    .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; word-break: break-all; }
+    .stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin: 12px 0; }
+    .stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .stat .k { color: var(--muted); font-size: 12px; }
+    .stat .v { font-weight: 650; font-size: 16px; font-variant-numeric: tabular-nums; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    th { position: sticky; top: 0; background: var(--card); color: var(--muted); font-weight: 600; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .in { color: var(--ok); } .out { color: var(--bad); }
+    .notice { padding: 10px 12px; border-radius: 10px; font-size: 14px; margin: 10px 0; }
+    .notice.ok { background: var(--ok-bg); color: var(--ok); }
+    .notice.warn { background: var(--warn-bg); color: var(--warn); }
+    .notice.bad { background: var(--bad-bg); color: var(--bad); }
+    progress { width: 100%; height: 8px; }
+    .hidden { display: none !important; }
+    a { color: var(--accent); }
+    code { background: var(--code); padding: 1px 5px; border-radius: 5px; }
+    footer { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 13px; }
+    .pay-amount { font-size: 34px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ArcBooks</h1>
+    <span class="tag">Exact, reconciled, verifiable USDC statements on Arc</span>
+    <span class="spacer"></span>
+    <button id="connectBtn" class="btn secondary">Connect wallet</button>
+  </header>
+
+  <main>
+    <nav role="tablist">
+      <button role="tab" data-tab="statement" aria-selected="true">Statement</button>
+      <button role="tab" data-tab="verify" aria-selected="false">Verify</button>
+      <button role="tab" data-tab="request" aria-selected="false">Payment request</button>
+      <button role="tab" data-tab="about" aria-selected="false">How it works</button>
+    </nav>
+
+    <!-- PAY (shown when opened from a payment link) -->
+    <section id="tab-pay" class="hidden">
+      <div class="card">
+        <h2>Payment request</h2>
+        <div class="muted">Pay to</div>
+        <div id="payTo" class="mono"></div>
+        <div class="pay-amount" id="payAmount"></div>
+        <div class="muted">Reference: <b id="payRef"></b></div>
+        <p class="muted">This sends USDC through Arc's predeployed <code>Memo</code> contract, so the reference is recorded onchain with the transfer and shows up on the recipient's ArcBooks statement. Your wallet must be a regular EOA (MetaMask, Rabby, etc.).</p>
+        <div class="actions"><button id="payBtn" class="btn">Pay with wallet</button></div>
+        <div id="payStatus"></div>
+      </div>
+    </section>
+
+    <!-- STATEMENT -->
+    <section id="tab-statement">
+      <div class="card">
+        <h2>Generate a statement</h2>
+        <div class="row">
+          <div style="grid-column: span 2"><label for="acct">Arc address</label><input id="acct" placeholder="0x…" autocomplete="off" spellcheck="false" /></div>
+          <div><label for="preset">Period</label>
+            <select id="preset">
+              <option value="1h">Last hour</option>
+              <option value="24h" selected>Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+              <option value="dates">Custom dates (UTC)</option>
+              <option value="blocks">Custom block range</option>
+            </select>
+          </div>
+        </div>
+        <div class="row hidden" id="datesRow">
+          <div><label for="fromDate">From (UTC)</label><input id="fromDate" type="datetime-local" /></div>
+          <div><label for="toDate">To (UTC)</label><input id="toDate" type="datetime-local" /></div>
+        </div>
+        <div class="row hidden" id="blocksRow">
+          <div><label for="fromBlock">From block</label><input id="fromBlock" inputmode="numeric" /></div>
+          <div><label for="toBlock">To block</label><input id="toBlock" inputmode="numeric" /></div>
+        </div>
+        <div class="row">
+          <div><label for="idrRate">Optional: IDR per USDC (for the report export)</label><input id="idrRate" inputmode="decimal" placeholder="e.g. 16450" /></div>
+        </div>
+        <div class="actions">
+          <button id="genBtn" class="btn">Generate statement</button>
+          <span id="genStatus" class="muted"></span>
+        </div>
+        <progress id="genProgress" class="hidden" value="0" max="1"></progress>
+      </div>
+
+      <div id="result" class="hidden">
+        <div class="card">
+          <h2>Statement</h2>
+          <div class="muted mono" id="resMeta"></div>
+          <div class="stats" id="resStats"></div>
+          <div id="reconcile"></div>
+          <div class="actions" style="margin: 10px 0 14px">
+            <button id="dlCanonical" class="btn">Download canonical CSV</button>
+            <button id="dlReport" class="btn secondary">Download report CSV (with IDR)</button>
+          </div>
+          <div class="muted">Statement hash (keccak256 of the canonical CSV)</div>
+          <div class="mono" id="resHash"></div>
+        </div>
+
+        <div class="card">
+          <h2>Anchor onchain</h2>
+          <p class="muted">Record this statement's hash in the ArcBooks <code>StatementRegistry</code> on Arc mainnet. Anyone can then verify that a CSV they receive is exactly the one you attested, and can re-derive it from chain data.</p>
+          <div class="row"><div><label for="label">Label (optional, ≤ 96 bytes)</label><input id="label" placeholder="e.g. Toko Batik Sari — September 2026" /></div></div>
+          <div class="actions"><button id="anchorBtn" class="btn">Anchor statement</button><span id="anchorStatus" class="muted"></span></div>
+          <div id="existingAnchors"></div>
+        </div>
+
+        <div class="card">
+          <h2>Transfers</h2>
+          <div class="muted" id="tableNote"></div>
+          <div class="table-wrap" style="max-height: 520px">
+            <table>
+              <thead><tr><th>Block</th><th>Dir</th><th>Counterparty</th><th style="text-align:right">Amount (USDC)</th><th>Memo</th><th>Tx</th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VERIFY -->
+    <section id="tab-verify" class="hidden">
+      <div class="card">
+        <h2>Verify a statement</h2>
+        <p class="muted">Drop in a canonical ArcBooks CSV. We hash it locally, look the hash up in the onchain registry, and can independently re-derive the statement from Arc chain data to prove the contents are true, not just unchanged.</p>
+        <div class="row"><div><label for="verifyFile">Canonical CSV file</label><input id="verifyFile" type="file" accept=".csv,text/csv" /></div></div>
+        <div id="verifyOut"></div>
+        <div class="actions"><button id="rederiveBtn" class="btn secondary hidden">Re-derive from chain and compare</button><span id="rederiveStatus" class="muted"></span></div>
+        <progress id="verifyProgress" class="hidden" value="0" max="1"></progress>
+      </div>
+    </section>
+
+    <!-- REQUEST -->
+    <section id="tab-request" class="hidden">
+      <div class="card">
+        <h2>Create a payment request</h2>
+        <p class="muted">Generate a link a customer can open to pay you in USDC with an invoice reference attached through Arc's native <code>Memo</code> contract. The reference appears next to the payment in your ArcBooks statement, so reconciliation is automatic.</p>
+        <div class="row">
+          <div style="grid-column: span 2"><label for="reqTo">Your Arc address</label><input id="reqTo" placeholder="0x…" spellcheck="false" /></div>
+          <div><label for="reqAmount">Amount (USDC)</label><input id="reqAmount" inputmode="decimal" placeholder="25.00" /></div>
+          <div><label for="reqRef">Reference</label><input id="reqRef" placeholder="INV-2026-0042" maxlength="64" /></div>
+        </div>
+        <div class="actions"><button id="reqBtn" class="btn">Create link</button></div>
+        <div id="reqOut"></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="tab-about" class="hidden">
+      <div class="card">
+        <h2>Why statements on Arc need care</h2>
+        <p>On Arc, USDC is both the native gas token (18 decimals) and an ERC-20 (6 decimals) backed by the same balance. A single ERC-20 <code>transfer()</code> emits <b>two</b> <code>Transfer</code> logs: one from the USDC contract <code>0x3600…0000</code> (6 decimals) and one from the system emitter <code>0xffff…fffe</code> (EIP-7708, 18 decimals). Plain native sends emit only the system log, and gas fees emit nothing at all. Naive indexers double-count, truncate sub-cent amounts, or silently miss fees.</p>
+        <p>ArcBooks reads <b>only</b> the system-emitter stream, so every movement is counted exactly once at full 18-decimal precision. It then reconciles: <code>opening + in − out</code> is compared with the onchain closing balance, and the difference is reported explicitly as fees and other non-logged movement.</p>
+        <h2>Memos</h2>
+        <p>Transfers sent through Arc's predeployed <code>Memo</code> contract (<code>0x5294…e505</code>) carry an invoice or order reference. ArcBooks joins <code>Memo</code> events to transfers by transaction, so each payment shows its reference. The Payment request tab creates links that pay this way.</p>
+        <h2>Verifiable statements</h2>
+        <p>The canonical CSV is deterministic: the same address and block range always produce the same bytes. Its keccak256 hash can be anchored in the <code>StatementRegistry</code> contract. An auditor, bank, or tax consultant can check the hash and re-derive the statement from public chain data. No trust in the person who sent the file is required.</p>
+        <p class="muted">Contract: <span class="mono" id="aboutRegistry"></span> · Source: <a href="https://github.com/neimasilk/arcbooks" target="_blank" rel="noreferrer">github.com/neimasilk/arcbooks</a></p>
+      </div>
+    </section>
+  </main>
+  <footer>ArcBooks is open source (MIT). It reads public data from <code>rpc.mainnet.arc.io</code>, and nothing leaves your browser except RPC calls. Built with AI assistance (Claude), disclosed in the README.</footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

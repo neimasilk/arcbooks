@@ -34,6 +34,10 @@ Tested live on mainnet: a busy account with **3,631 transfers in 3,000 blocks re
 2. **Anchor**: `StatementRegistry.anchor(hash, account, fromBlock, toBlock, label)` stores the hash in contract storage. Multiple parties (the business and its accountant, for example) can co-attest.
 3. **Verify**: the recipient drops the CSV into the Verify tab. It is hashed locally and looked up with a single `getAnchors(hash)` view call. **Re-derive** regenerates the statement from public chain data and compares it byte for byte, which proves the contents are true and not just unchanged.
 
+## Chainlink CRE: automated, hash-chained attestation
+
+[`cre/`](cre/) contains **ArcBooks Auto-Attest**, a Chainlink CRE workflow in Go. It reads Arc Testnet (headers, archive balances, USDC Transfer and Memo logs), rebuilds the canonical statement byte for byte, fetches a USD/IDR rate from an external API under DON median consensus, and writes a signed checkpoint to `ArcBooksAttestor`. Checkpoints form a hash chain over contiguous block ranges, so gaps and rewrites are rejected onchain. Real broadcast checkpoints, plus a demo merchant with Memo invoice payments, are listed in [cre/README.md](cre/README.md). The web app verifies them on the **Verify** tab or with the **Network → Arc Testnet** selector.
+
 ## Payment requests with memos
 
 `?pay=<address>&amount=<usdc>&ref=<reference>` opens a payment page. The payer's wallet calls
@@ -42,7 +46,8 @@ Tested live on mainnet: a busy account with **3,631 transfers in 3,000 blocks re
 ## Repository layout
 
 ```
-contracts/   Foundry project: StatementRegistry.sol + tests (unit + fuzz)
+contracts/   Foundry project: StatementRegistry.sol, ArcBooksAttestor.sol (CRE consumer) + tests (unit + fuzz)
+cre/         Chainlink CRE workflow (Go): ArcBooks Auto-Attest
 docs/        Static app (GitHub Pages) (no build step): index.html, app.js, statement.js (core), config.js
 test/        Live mainnet test for the statement engine (Node 22+)
 scripts/     Deployment helper

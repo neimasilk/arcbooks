@@ -8,6 +8,15 @@ export const ARC_MAINNET = {
   explorer: 'https://explorer.arc.io',
 };
 
+export const ARC_TESTNET = {
+  id: 5042002,
+  name: 'Arc Testnet',
+  rpcUrl: 'https://rpc.blockdaemon.testnet.arc.io',
+  explorer: 'https://explorer.testnet.arc.io',
+};
+
+export const NETWORKS = { [ARC_MAINNET.id]: ARC_MAINNET, [ARC_TESTNET.id]: ARC_TESTNET };
+
 // Native USDC system emitter (EIP-7708 Transfer logs, 18 decimals)
 export const NATIVE_EMITTER = '0xfffffffffffffffffffffffffffffffffffffffe';
 // ERC-20 USDC interface (6 decimals) — NOT indexed for amounts, to avoid double counting
@@ -136,7 +145,7 @@ const csvCell = (v) => {
  * Build a statement for `account` over blocks [fromBlock, toBlock].
  * Returns rows + canonical CSV (deterministic: same chain data => same bytes).
  */
-export async function buildStatement(rpc, account, fromBlock, toBlock, { concurrency = 4, onProgress } = {}) {
+export async function buildStatement(rpc, account, fromBlock, toBlock, { concurrency = 4, onProgress, chainId = ARC_MAINNET.id } = {}) {
   if (!isAddress(account)) throw new Error('Invalid address');
   account = account.toLowerCase();
   fromBlock = Number(fromBlock); toBlock = Number(toBlock);
@@ -216,7 +225,7 @@ export async function buildStatement(rpc, account, fromBlock, toBlock, { concurr
     r.runningBeforeFeesWei = running;
   }
 
-  const summary = { account, fromBlock, toBlock, opening, closing, totalIn, totalOut, unexplained, count: rows.length };
+  const summary = { chainId, account, fromBlock, toBlock, opening, closing, totalIn, totalOut, unexplained, count: rows.length };
   const csv = canonicalCsv(summary, rows);
   return { summary, rows, csv };
 }
@@ -224,7 +233,7 @@ export async function buildStatement(rpc, account, fromBlock, toBlock, { concurr
 export function canonicalCsv(s, rows) {
   const lines = [
     `# ${STATEMENT_VERSION}`,
-    `# chain_id,${ARC_MAINNET.id}`,
+    `# chain_id,${s.chainId ?? ARC_MAINNET.id}`,
     `# account,${s.account}`,
     `# from_block,${s.fromBlock}`,
     `# to_block,${s.toBlock}`,

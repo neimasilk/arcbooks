@@ -1,0 +1,12 @@
+{
+  "schedule": "0 */5 * * * *",
+  "chainName": "arc-testnet",
+  "chainId": 5042002,
+  "account": "0xE1ac95a9D735E6e8E01EBF76915981d2A53F9288",
+  "attestorAddress": "0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C",
+  "gasLimit": 900000,
+  "windowBlocks": 100,
+  "maxWindows": 3,
+  "confirmationBlocks": 3,
+  "fxUrl": "https://open.er-api.com/v6/latest/USD"
+}

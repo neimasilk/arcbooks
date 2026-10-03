@@ -1,0 +1,15 @@
+# arcbooks-statement-v1
+# chain_id,5042002
+# account,0xe1ac95a9d735e6e8e01ebf76915981d2a53f9288
+# from_block,65255654
+# to_block,65255953
+# opening_balance_usdc,0
+# closing_balance_usdc,2.5
+# total_in_usdc,2.5
+# total_out_usdc,0
+# fees_and_unlogged_usdc,0
+# transfers,3
+block,tx_hash,log_index,direction,counterparty,amount_usdc,memo_id,memo
+65255932,0x895d23d2e165ecbe8c03445f80aa49a7f1ad7744845c77d77e05dc4221dc741e,21,in,0xa41ee7de65ebf09aecc1e89270e7e626a8f64ebb,1.5,0x7e4c754f6365651ab08e670c042dee843868f617c1d148b65fe9b0daf160377a,INV-T-0001 Sewa toko Oktober 2026
+65255937,0x9111e698f9fbce2220a6da6bb21ed5e6329dad0fcf3db7e3c57926bc3873298b,9,in,0xa41ee7de65ebf09aecc1e89270e7e626a8f64ebb,0.75,0x45f15ddf15d8f6e95322cb73b8937fedc33da8ee279d5fa21e75c4ab803a3767,INV-T-0002 Jasa desain logo
+65255942,0x2e1f91cc98dcae4c80c22da62258c97dc692daa15c1e31a94729f4039685e16e,27,in,0xa41ee7de65ebf09aecc1e89270e7e626a8f64ebb,0.25,,

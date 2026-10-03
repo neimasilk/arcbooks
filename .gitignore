@@ -7,3 +7,5 @@ contracts/broadcast/
 *.key
 node_modules/
 .playwright-mcp/
+cre/.env
+cre/**/.env

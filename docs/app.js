@@ -3,10 +3,10 @@ import {
   keccak256, toBytes, toHex, encodeFunctionData, erc20Abi, parseUnits, getAddress,
 } from 'https://cdn.jsdelivr.net/npm/viem@2.57.2/+esm';
 import {
-  ARC_MAINNET, USDC_ERC20, MEMO_CONTRACT, createRpc, buildStatement, formatUsdc,
+  ARC_MAINNET, ARC_TESTNET, NETWORKS, USDC_ERC20, MEMO_CONTRACT, createRpc, buildStatement, formatUsdc,
   isAddress, parseCsvHeader, blockAtOrAfter,
 } from './statement.js';
-import { REGISTRY_ADDRESS, REGISTRY_ABI, MEMO_ABI } from './config.js';
+import { REGISTRY_ADDRESS, REGISTRY_ABI, MEMO_ABI, ATTESTOR_ADDRESS, ATTESTOR_ABI, ATTESTOR_CHAIN_ID } from './config.js';
 
 const arc = defineChain({
   id: ARC_MAINNET.id,
@@ -16,15 +16,30 @@ const arc = defineChain({
   blockExplorers: { default: { name: 'Arc Explorer', url: ARC_MAINNET.explorer } },
 });
 
-const rpc = createRpc(ARC_MAINNET.rpcUrl);
-const publicClient = createPublicClient({ chain: arc, transport: http(ARC_MAINNET.rpcUrl) });
+const arcTestnet = defineChain({
+  id: ARC_TESTNET.id,
+  name: 'Arc Testnet',
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+  rpcUrls: { default: { http: [ARC_TESTNET.rpcUrl] } },
+  blockExplorers: { default: { name: 'Arc Testnet Explorer', url: ARC_TESTNET.explorer } },
+  testnet: true,
+});
+
+const rpcs = { [ARC_MAINNET.id]: createRpc(ARC_MAINNET.rpcUrl), [ARC_TESTNET.id]: createRpc(ARC_TESTNET.rpcUrl) };
+const clients = {
+  [ARC_MAINNET.id]: createPublicClient({ chain: arc, transport: http(ARC_MAINNET.rpcUrl) }),
+  [ARC_TESTNET.id]: createPublicClient({ chain: arcTestnet, transport: http(ARC_TESTNET.rpcUrl) }),
+};
+const publicClient = clients[ARC_MAINNET.id];
+let net = ARC_MAINNET; // network selected in the Statement tab
+const rpcFor = (id) => rpcs[id] || rpcs[ARC_MAINNET.id];
 const registryLive = REGISTRY_ADDRESS !== '0x0000000000000000000000000000000000000000';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const short = (a) => (a ? a.slice(0, 6) + '…' + a.slice(-4) : '');
-const txLink = (h) => `<a href="${ARC_MAINNET.explorer}/tx/${h}" target="_blank" rel="noreferrer" class="mono">${short(h)}</a>`;
-const addrLink = (a) => `<a href="${ARC_MAINNET.explorer}/address/${a}" target="_blank" rel="noreferrer" class="mono">${short(a)}</a>`;
+const txLink = (h, n = net) => `<a href="${n.explorer}/tx/${h}" target="_blank" rel="noreferrer" class="mono">${short(h)}</a>`;
+const addrLink = (a, n = net) => `<a href="${n.explorer}/address/${a}" target="_blank" rel="noreferrer" class="mono">${short(a)}</a>`;
 const fmt2 = (wei) => {
   const s = formatUsdc(wei);
   const [w, f = ''] = s.split('.');
@@ -60,12 +75,16 @@ async function connect() {
 $('connectBtn').addEventListener('click', () => connect().catch((e) => alert(e.shortMessage || e.message)));
 
 // ---------- statement
+$('network').addEventListener('change', () => {
+  net = NETWORKS[Number($('network').value)] || ARC_MAINNET;
+});
 $('preset').addEventListener('change', () => {
   $('datesRow').classList.toggle('hidden', $('preset').value !== 'dates');
   $('blocksRow').classList.toggle('hidden', $('preset').value !== 'blocks');
 });
 
 async function resolveRange() {
+  const rpc = rpcFor(net.id);
   const latest = Number(BigInt(await rpc('eth_blockNumber', [])));
   const head = latest - 2;
   const p = $('preset').value;
@@ -103,14 +122,15 @@ $('genBtn').addEventListener('click', async () => {
     prog.classList.remove('hidden'); prog.value = 0;
     $('genStatus').textContent = `Scanning blocks ${from.toLocaleString()}–${to.toLocaleString()}…`;
     const t0 = performance.now();
-    const st = await buildStatement(rpc, acct, from, to, {
+    const st = await buildStatement(rpcFor(net.id), acct, from, to, {
+      chainId: net.id,
       onProgress: (d, n) => { prog.max = n; prog.value = d; },
     });
     st.hash = keccak256(toBytes(st.csv));
     current = st;
     renderStatement(st);
     $('genStatus').textContent = `Done in ${((performance.now() - t0) / 1000).toFixed(1)} s.`;
-    history.replaceState(null, '', `?account=${acct}&from=${from}&to=${to}`);
+    history.replaceState(null, '', `?account=${acct}&from=${from}&to=${to}${net.id === ARC_TESTNET.id ? '&net=testnet' : ''}`);
   } catch (e) {
     $('genStatus').textContent = 'Error: ' + (e.shortMessage || e.message);
   } finally {
@@ -144,9 +164,13 @@ function renderStatement(st) {
       <td class="num ${r.direction}">${r.direction === 'in' ? '+' : '−'}${esc(formatUsdc(r.amountWei))}</td>
       <td>${esc(r.memo)}</td>
       <td>${txLink(r.txHash)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No USDC transfers in this range.</td></tr>';
-  $('anchorStatus').textContent = registryLive ? '' : 'Registry not deployed yet.';
+  const isTestnet = s.chainId === ARC_TESTNET.id;
+  $('anchorBtn').classList.toggle('hidden', isTestnet);
+  $('anchorStatus').textContent = isTestnet
+    ? 'On Arc Testnet, statements are attested automatically by the Chainlink CRE workflow (see How it works).'
+    : (registryLive ? '' : 'Registry not deployed yet.');
   $('anchorBtn').disabled = !registryLive;
-  showAnchors(st.hash, $('existingAnchors'));
+  showAnchors(st.hash, $('existingAnchors'), s.chainId);
 }
 
 function download(name, text) {
@@ -174,7 +198,27 @@ $('dlReport').addEventListener('click', () => {
   download(baseName() + '_report.csv', lines.join('\n') + '\n');
 });
 
-async function showAnchors(hash, el) {
+async function showCre(hash, el) {
+  const tn = NETWORKS[ATTESTOR_CHAIN_ID];
+  try {
+    const a = await clients[ATTESTOR_CHAIN_ID].readContract({ address: ATTESTOR_ADDRESS, abi: ATTESTOR_ABI, functionName: 'getAttestation', args: [hash] });
+    if (!a.attestedAt) { el.innerHTML = '<div class="muted" style="margin-top:8px">No Chainlink CRE attestation for this exact statement.</div>'; return []; }
+    const rate = a.usdIdrRateE6 ? Number(a.usdIdrRateE6) / 1e6 : 0;
+    const idr = rate ? ' ≈ Rp' + Math.round(Number(formatUsdc(a.closingBalanceWei)) * rate).toLocaleString('id-ID') : '';
+    const genesis = /^0x0+$/.test(a.prevHash);
+    el.innerHTML = notice('ok', `✔ Attested by the <b>Chainlink CRE</b> workflow at block ${a.attestedAt} on Arc Testnet (contract ${addrLink(ATTESTOR_ADDRESS, tn)}).<br/>`
+      + `Blocks ${a.fromBlock}–${a.toBlock}, ${a.transfers} transfers, closing ${esc(formatUsdc(a.closingBalanceWei))} USDC${idr}`
+      + (rate ? ` (USD/IDR ${rate.toLocaleString('en-US', { maximumFractionDigits: 2 })} from an external FX API, DON median)` : '')
+      + `<br/>${genesis ? 'Genesis checkpoint.' : 'Previous checkpoint: <span class="mono">' + esc(a.prevHash) + '</span>'}`);
+    return [a];
+  } catch (e) {
+    el.innerHTML = notice('bad', 'Attestor lookup failed: ' + esc(e.shortMessage || e.message));
+    return [];
+  }
+}
+
+async function showAnchors(hash, el, chainId = ARC_MAINNET.id) {
+  if (chainId === ATTESTOR_CHAIN_ID) return showCre(hash, el);
   if (!registryLive) { el.innerHTML = ''; return []; }
   try {
     const anchors = await publicClient.readContract({ address: REGISTRY_ADDRESS, abi: REGISTRY_ABI, functionName: 'getAnchors', args: [hash] });
@@ -226,9 +270,11 @@ $('verifyFile').addEventListener('change', async () => {
     $('rederiveBtn').classList.add('hidden');
     return;
   }
-  out.innerHTML = `<p class="muted">Account <span class="mono">${esc(meta.account)}</span>, blocks ${esc(meta.from_block)}–${esc(meta.to_block)}<br/>Hash <span class="mono">${hash}</span></p><div id="verifyAnchors"></div>`;
-  const anchors = await showAnchors(hash, $('verifyAnchors'));
-  if (registryLive && !anchors.length) $('verifyAnchors').innerHTML = notice('warn', 'No onchain anchor for this exact file. It may have been modified, or it was never anchored.');
+  const chainId = Number(meta.chain_id) || ARC_MAINNET.id;
+  const netName = (NETWORKS[chainId] || { name: 'unknown chain ' + chainId }).name;
+  out.innerHTML = `<p class="muted">${esc(netName)} · account <span class="mono">${esc(meta.account)}</span>, blocks ${esc(meta.from_block)}–${esc(meta.to_block)}<br/>Hash <span class="mono">${hash}</span></p><div id="verifyAnchors"></div>`;
+  const anchors = await showAnchors(hash, $('verifyAnchors'), chainId);
+  if (!anchors.length) $('verifyAnchors').innerHTML = notice('warn', 'No onchain anchor or CRE attestation for this exact file. It may have been modified, or it was never anchored.');
   $('rederiveBtn').classList.remove('hidden');
   $('rederiveStatus').textContent = '';
 });
@@ -241,7 +287,10 @@ $('rederiveBtn').addEventListener('click', async () => {
   prog.classList.remove('hidden');
   try {
     $('rederiveStatus').textContent = 'Re-deriving from Arc chain data…';
-    const st = await buildStatement(rpc, meta.account, Number(meta.from_block), Number(meta.to_block), {
+    const chainId = Number(meta.chain_id) || ARC_MAINNET.id;
+    if (!NETWORKS[chainId]) throw new Error('Unsupported chain_id ' + chainId);
+    const st = await buildStatement(rpcFor(chainId), meta.account, Number(meta.from_block), Number(meta.to_block), {
+      chainId,
       onProgress: (d, n) => { prog.max = n; prog.value = d; },
     });
     const same = st.csv === verifyText;
@@ -306,6 +355,7 @@ async function setupPay(params) {
 (async () => {
   const params = new URLSearchParams(location.search);
   if (await setupPay(params)) return;
+  if (params.get('net') === 'testnet') { net = ARC_TESTNET; $('network').value = String(ARC_TESTNET.id); }
   const a = params.get('account'), f = params.get('from'), t = params.get('to');
   if (isAddress(a || '')) {
     $('acct').value = a;

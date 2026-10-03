@@ -96,9 +96,15 @@
     <section id="tab-statement">
       <div class="card">
         <h2>Generate a statement</h2>
-        <p class="muted" style="margin-top:-6px">New here? <a href="?account=0xE1ac95a9D735E6e8E01EBF76915981d2A53F9288&from=24009177&to=24009255">Open the demo merchant's anchored statement</a> (two invoice payments via <code>Memo</code> plus one native send), or <a href="./demo-statement.csv" download>download its CSV</a> and try the Verify tab.</p>
+        <p class="muted" style="margin-top:-6px">New here? <a href="?account=0xE1ac95a9D735E6e8E01EBF76915981d2A53F9288&from=24009177&to=24009255">Open the demo merchant's anchored statement</a> or <a href="?account=0xE1ac95a9D735E6e8E01EBF76915981d2A53F9288&from=65255654&to=65255953&net=testnet">its Chainlink CRE-attested testnet checkpoint</a> (two invoice payments via <code>Memo</code> plus one native send), or <a href="./demo-statement.csv" download>download its CSV</a> and try the Verify tab.</p>
         <div class="row">
           <div style="grid-column: span 2"><label for="acct">Arc address</label><input id="acct" placeholder="0x…" autocomplete="off" spellcheck="false" /></div>
+          <div><label for="network">Network</label>
+            <select id="network">
+              <option value="5042" selected>Arc Mainnet</option>
+              <option value="5042002">Arc Testnet (CRE attestations)</option>
+            </select>
+          </div>
           <div><label for="preset">Period</label>
             <select id="preset">
               <option value="1h">Last hour</option>
@@ -166,7 +172,7 @@
     <section id="tab-verify" class="hidden">
       <div class="card">
         <h2>Verify a statement</h2>
-        <p class="muted">Drop in a canonical ArcBooks CSV. We hash it locally, look the hash up in the onchain registry, and can independently re-derive the statement from Arc chain data to prove the contents are true, not just unchanged.</p>
+        <p class="muted">Drop in a canonical ArcBooks CSV (mainnet or testnet). We hash it locally, look the hash up onchain (the mainnet <code>StatementRegistry</code>, or the testnet <code>ArcBooksAttestor</code> fed by Chainlink CRE), and can independently re-derive the statement from Arc chain data to prove the contents are true, not just unchanged. Try <a href="./demo-statement.csv" download>the mainnet demo</a> or <a href="./demo-cre-checkpoint.csv" download>a CRE-attested testnet checkpoint</a>.</p>
         <div class="row"><div><label for="verifyFile">Canonical CSV file</label><input id="verifyFile" type="file" accept=".csv,text/csv" /></div></div>
         <div id="verifyOut"></div>
         <div class="actions"><button id="rederiveBtn" class="btn secondary hidden">Re-derive from chain and compare</button><span id="rederiveStatus" class="muted"></span></div>
@@ -197,6 +203,15 @@
         <p>ArcBooks reads <b>only</b> the system-emitter stream, so every movement is counted exactly once at full 18-decimal precision. It then reconciles: <code>opening + in − out</code> is compared with the onchain closing balance, and the difference is reported explicitly as fees and other non-logged movement.</p>
         <h2>Memos</h2>
         <p>Transfers sent through Arc's predeployed <code>Memo</code> contract (<code>0x5294…e505</code>) carry an invoice or order reference. ArcBooks joins <code>Memo</code> events to transfers by transaction, so each payment shows its reference. The Payment request tab creates links that pay this way.</p>
+        <h2>Automated attestation with Chainlink CRE</h2>
+        <p>The <code>/cre</code> folder contains <b>ArcBooks Auto-Attest</b>, a Chainlink Runtime Environment workflow written in Go. On a cron schedule it:</p>
+        <ul>
+          <li>reads the latest header, the account's last checkpoint, archive balances, and USDC Transfer and Memo logs from <b>Arc Testnet</b> (EVM read);</li>
+          <li>rebuilds the same canonical CSV as this app, byte for byte (cross-tested against real mainnet and testnet data), and hashes it;</li>
+          <li>fetches a <b>USD/IDR reference rate</b> from an external FX API with median consensus across the DON (HTTP);</li>
+          <li>sends a signed report to <code>ArcBooksAttestor</code> (EVM write via the CRE forwarder).</li>
+        </ul>
+        <p>Checkpoints form a <b>hash chain over contiguous block ranges</b>: each must start one block after the previous one and commit to its hash, so gaps, overlaps and rewrites are rejected onchain. The result is a tamper-evident, continuously audited USDC ledger that anyone can re-derive here. Attestor (Arc Testnet): <span class="mono">0xe048B7592D0aCb55f01d06013Df6961ABF9Fdb9C</span>.</p>
         <h2>Verifiable statements</h2>
         <p>The canonical CSV is deterministic: the same address and block range always produce the same bytes. Its keccak256 hash can be anchored in the <code>StatementRegistry</code> contract. An auditor, bank, or tax consultant can check the hash and re-derive the statement from public chain data. No trust in the person who sent the file is required.</p>
         <p class="muted">Contract: <span class="mono" id="aboutRegistry"></span> · Source: <a href="https://github.com/neimasilk/arcbooks" target="_blank" rel="noreferrer">github.com/neimasilk/arcbooks</a></p>

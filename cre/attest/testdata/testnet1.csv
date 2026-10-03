@@ -1,0 +1,13 @@
+# arcbooks-statement-v1
+# chain_id,5042002
+# account,0xb31a4b2eea38450be31f52666371e99c4d9c7010
+# from_block,65253900
+# to_block,65254199
+# opening_balance_usdc,16.904499000001
+# closing_balance_usdc,16.898790750001
+# total_in_usdc,0
+# total_out_usdc,0.000001
+# fees_and_unlogged_usdc,0.00570725
+# transfers,1
+block,tx_hash,log_index,direction,counterparty,amount_usdc,memo_id,memo
+65254099,0xa68be99b4b502149731344c8ca594038a84e213a75e060c0904af0bf2f286524,32,out,0xee153ab6cb4a7a5df1d1f28486d20dc20a847443,0.000001,0x0000000000000000000000000000000000000000000000000000000000000000,
